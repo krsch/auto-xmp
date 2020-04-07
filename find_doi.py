@@ -10,6 +10,8 @@ from typing import Dict
 import xml.etree.ElementTree as ET
 import requests
 
+INTERACTIVE = False
+
 def find_doi(title):
     '''Searches for a work in crossref and returns its DOI. May ask for input'''
     response = requests.get('https://api.crossref.org/works', params={
@@ -21,10 +23,17 @@ def find_doi(title):
         # return None
         for idx, work in enumerate(items):
             print('{}: DOI: {} => {}'.format(idx, work['DOI'], work['title']))
-        ans = int(input('Enter article number or -1 to quit --> '))
-        if ans < 0:
+        if INTERACTIVE:
+            ans = input('Enter article number or 0 to quit --> ')
+        else:
+            ans = 0
+        try:
+            if int(ans) <= 0:
+                return None
+            return items[int(ans)-1]['DOI']
+        except (ValueError, KeyError):
             return None
-        return items[ans]['DOI']
+        return None
     else:
         return items[0]['DOI']
 
@@ -54,8 +63,10 @@ def doi_from_ieee_title(title):
         print('{} {} - {}'.format(idx+1, i.get('doi'), i.get('articleTitle')))
     if len(items) == 1:
         return items[0].get('doi')
-    # ans = input('Enter article number or 0 to quit --> ')
-    ans = 0
+    if INTERACTIVE:
+        ans = input('Enter article number or 0 to quit --> ')
+    else:
+        ans = 0
     try:
         if int(ans) <= 0:
             return None
@@ -113,8 +124,9 @@ def get_doi(info):
         return None
     # title = info.get("XMP-dc:Title") or Path(info["System:FileName"]).with_suffix('').name
     title = Path(info["System:FileName"]).with_suffix('').name
-    # return find_doi(title)
-    return doi_from_ieee_title(title)
+    doi = doi_from_ieee_title(title)
+    if not doi:
+        return find_doi(title)
 
 def get_rdf(doi):
     response = requests.get('https://doi.org/' + doi, headers={
